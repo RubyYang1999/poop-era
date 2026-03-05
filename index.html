@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>屎棄時代｜廁所薪水計算器</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", Arial; margin: 24px; }
+    .card { max-width: 520px; padding: 18px; border: 1px solid #ddd; border-radius: 14px; }
+    .row { display: flex; gap: 12px; align-items: center; margin: 10px 0; }
+    label { width: 130px; }
+    input { flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; }
+    button { padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; cursor: pointer; }
+    button.primary { border-color: #000; }
+    .big { font-size: 34px; font-weight: 700; margin: 10px 0 2px; }
+    .muted { color: #666; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .stat { padding: 12px; border: 1px dashed #ccc; border-radius: 12px; }
+    .stat .k { color: #666; font-size: 12px; }
+    .stat .v { font-size: 18px; font-weight: 700; margin-top: 6px; }
+  </style>
+</head>
+<body>
+<canvas class="poop-bg" id="poopCanvas"></canvas>
+  <div class="card">
+    <h2 style="margin:0 0 6px;text-align:center;">💩屎棄時代💩</h2>
+    <p class="subtitle; text-align:center;">💰 Every Poop Is Paid.</p>
+
+    <div class="muted">輸入月薪，按開始計時，系統會即時計算你這次上廁所「賺了多少薪水」。</div>
+
+    <div class="row">
+      <label>月薪（NT$）</label>
+      <input id="salary" type="number" inputmode="numeric" placeholder="例如 45000" min="0" />
+    </div>
+
+    <div class="row">
+      <label>每月工時（hr）</label>
+      <input id="hoursPerMonth" type="number" inputmode="numeric" value="174" min="1" />
+    </div>
+
+    <div class="row" style="gap:10px;">
+      <button id="startBtn" class="primary">開始</button>
+      <button id="pauseBtn">暫停</button>
+      <button id="resetBtn">歸零</button>
+    </div>
+
+    <div class="big" id="timer">00:00.0</div>
+    <div class="muted">（mm:ss.t）</div>
+
+    <div class="grid">
+      <div class="stat">
+        <div class="k">每秒薪資</div>
+        <div class="v" id="perSecond">NT$ 0.0000 / s</div>
+      </div>
+      <div class="stat">
+        <div class="k">本次廁所薪水</div>
+        <div class="v" id="earned">NT$ 0.00</div>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px;">
+      計算式：每秒薪資 = 月薪 ÷ (每月工時 × 3600)；本次薪水 = 每秒薪資 × 經過秒數
+    </div>
+  </div>
+
+  <script>
+    const salaryEl = document.getElementById("salary");
+    const hoursEl = document.getElementById("hoursPerMonth");
+    const timerEl = document.getElementById("timer");
+    const perSecondEl = document.getElementById("perSecond");
+    const earnedEl = document.getElementById("earned");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let running = false;
+    let startTs = 0;
+    let elapsedMs = 0;
+    let rafId = 0;
+
+    function calcPerSecond() {
+      const salary = Number(salaryEl.value || 0);
+      const hours = Number(hoursEl.value || 0);
+      if (salary <= 0 || hours <= 0) return 0;
+      return salary / (hours * 3600);
+    }
+
+    function formatTime(ms) {
+      const totalTenths = Math.floor(ms / 100);
+      const tenths = totalTenths % 10;
+      const totalSec = Math.floor(totalTenths / 10);
+      const sec = totalSec % 60;
+      const min = Math.floor(totalSec / 60);
+      const mm = String(min).padStart(2, "0");
+      const ss = String(sec).padStart(2, "0");
+      return `${mm}:${ss}.${tenths}`;
+    }
+
+    function render() {
+      const perSecond = calcPerSecond();
+      perSecondEl.textContent = `NT$ ${perSecond.toFixed(4)} / s`;
+
+      timerEl.textContent = formatTime(elapsedMs);
+
+      const earned = perSecond * (elapsedMs / 1000);
+      earnedEl.textContent = `NT$ ${earned.toFixed(2)}`;
+    }
+
+    function loop(now) {
+      if (!running) return;
+      elapsedMs = now - startTs;
+      render();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener("click", () => {
+      if (running) return;
+      // 若之前暫停過，接續計時
+      running = true;
+      startTs = performance.now() - elapsedMs;
+      rafId = requestAnimationFrame(loop);
+    });
+
+    pauseBtn.addEventListener("click", () => {
+      if (!running) return;
+      running = false;
+      cancelAnimationFrame(rafId);
+      render();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      running = false;
+      cancelAnimationFrame(rafId);
+      elapsedMs = 0;
+      render();
+    });
+
+    salaryEl.addEventListener("input", render);
+    hoursEl.addEventListener("input", render);
+
+    render();
+	
+  </script>
+</body>
+</html>
